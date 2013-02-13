@@ -31,12 +31,6 @@ type StatusPage struct {
 	Message string
 }
 
-/*
-type Submission struct {
-	username  string
-	timestamp time.Time
-}
-*/
 
 var usercount int = 0
 var secret string = "DEFAULT";
