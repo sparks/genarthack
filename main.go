@@ -9,10 +9,12 @@ import (
         "bufio"
 	"net/http"
 	"os"
+        "encoding/hex"
 	"regexp"
 	"strings"
 	"time"
         "log"
+        "crypto/rand"
 )
 
 const (
@@ -36,6 +38,7 @@ type Submission struct {
 
 var usercount int = 0
 var secret string = "DEFAULT";
+var secretVal string;
 
 func main() {
 	err := os.Mkdir(uploadPath, os.ModeDir|0755)
@@ -56,6 +59,13 @@ func main() {
         } else {
             log.Println("Warning: No secret specified, defaulting to: " + secret)
         }
+        // Create a random value for the cookies
+        bytes := make([]byte,4)
+        n,err := rand.Read(bytes)
+        if err!=nil || n!=cap(bytes) {
+            log.Fatal("Failed to initalize random session value")
+        }
+        secretVal = hex.EncodeToString(bytes)
 
 	http.HandleFunc("/cycler", func(w http.ResponseWriter, r *http.Request) {
             http.ServeFile(w,r,filepath.Join(templatePath,"cycler.html"))
@@ -79,7 +89,7 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
         if r.FormValue("pass") == secret {
             var cookie http.Cookie
             cookie.Name = cookieName
-            cookie.Value = "1"
+            cookie.Value = secretVal
             http.SetCookie(w, &cookie)
             http.ServeFile(w, r, templatePath+"success.html")
         } else {
@@ -119,8 +129,8 @@ func RandomHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func SubmitHandler(w http.ResponseWriter, r *http.Request) {
-        _, err := r.Cookie(cookieName)
-        if err != nil {
+        cookie, err := r.Cookie(cookieName)
+        if err != nil || cookie.Value != secretVal {
             http.Redirect(w, r, "/auth",http.StatusTemporaryRedirect)
             return
         }
