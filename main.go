@@ -1,6 +1,7 @@
 package main
 
 import (
+        "path/filepath"
 	"archive/zip"
 	"html/template"
 	"io"
@@ -10,12 +11,15 @@ import (
 	"regexp"
 	"strings"
 	"time"
+        "log"
 )
 
 const (
 	resourcePath = "templates/resources/"
 	templatePath = "templates/"
 	uploadPath   = "uploads/"
+        cookieName = "gahpsess"
+        secret = "superart"
 )
 
 var templates = template.Must(template.ParseFiles(templatePath + "status.html"))
@@ -38,16 +42,38 @@ func main() {
 		panic(err)
 	}
 
-	http.HandleFunc("/", MainHandler)
+	http.HandleFunc("/cycler", func(w http.ResponseWriter, r *http.Request) {
+            http.ServeFile(w,r,filepath.Join(templatePath,"cycler.html"))
+
+        })
+	http.HandleFunc("/random", RandomHandler)
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {})
 	http.HandleFunc("/submit", SubmitHandler)
+	http.HandleFunc("/auth", AuthHandler)
 	http.Handle("/resources/", http.StripPrefix("/resources", http.FileServer(http.Dir(resourcePath))))
 	http.Handle("/uploads/", http.StripPrefix("/uploads", http.FileServer(http.Dir(uploadPath))))
 
 	http.ListenAndServe(":8080", nil)
 }
 
-func MainHandler(w http.ResponseWriter, r *http.Request) {
+func AuthHandler(w http.ResponseWriter, r *http.Request) {
+    if r.Method == "GET" {
+        http.ServeFile(w, r, templatePath+"auth.html")
+    } else if r.Method == "POST" {
+        log.Printf("Password: %s\n",r.FormValue("pass"))
+        if r.FormValue("pass") == secret {
+            var cookie http.Cookie
+            cookie.Name = cookieName
+            cookie.Value = "1"
+            http.SetCookie(w, &cookie)
+            http.ServeFile(w, r, templatePath+"success.html")
+        } else {
+            http.ServeFile(w, r, templatePath+"auth.html")
+        }
+    }
+}
+
+func RandomHandler(w http.ResponseWriter, r *http.Request) {
 	listing, err := ioutil.ReadDir(uploadPath)
 
 	if err != nil || len(listing) == 0 {
@@ -78,6 +104,11 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func SubmitHandler(w http.ResponseWriter, r *http.Request) {
+        _, err := r.Cookie(cookieName)
+        if err != nil {
+            http.Redirect(w, r, "/auth",http.StatusTemporaryRedirect)
+            return
+        }
 	if r.Method == "GET" {
 		http.ServeFile(w, r, templatePath+"submit.html")
 	} else if r.Method == "POST" {
@@ -123,7 +154,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		io.Copy(osFile, uploadFile)
 		osFile.Close()
 
-		// Open a zip archive for reading.
+		// Open a zip archive for reading
 		zipReader, err := zip.OpenReader(zipPath)
 		if err != nil {
 			ServeStatus(w, &StatusPage{"Malformed Zip"})
@@ -188,7 +219,30 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 
 		userLiveDir := userDir + "live/"
 		os.RemoveAll(userLiveDir)
-		err = os.Rename(tmpUnzipDir, userLiveDir)
+                // If there is only a single folder in this zip
+                // then that should be the top level
+
+                files, err := ioutil.ReadDir(tmpUnzipDir)
+                if err != nil {
+                    ServeStatus(w, &StatusPage{"Problem reading unzipped dir"})
+                }
+                hasIndex := false
+                var fdir os.FileInfo;
+                for _, finfo := range files {
+                    if finfo.IsDir() {
+                        fdir = finfo
+                    } else {
+                        if finfo.Name()=="index.html" {
+                            hasIndex = true
+                            break
+                        }
+                    }
+                }
+                if hasIndex {
+                    err = os.Rename(tmpUnzipDir, userLiveDir)
+                } else {
+                    err = os.Rename(filepath.Join(tmpUnzipDir,fdir.Name()), userLiveDir)
+                }
 		if err != nil {
 			ServeStatus(w, &StatusPage{"Problem Staging Project"})
 			return
