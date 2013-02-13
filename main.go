@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"io"
 	"io/ioutil"
+        "bufio"
 	"net/http"
 	"os"
 	"regexp"
@@ -19,7 +20,6 @@ const (
 	templatePath = "templates/"
 	uploadPath   = "uploads/"
         cookieName = "gahpsess"
-        secret = "superart"
 )
 
 var templates = template.Must(template.ParseFiles(templatePath + "status.html"))
@@ -35,12 +35,27 @@ type Submission struct {
 }
 
 var usercount int = 0
+var secret string = "DEFAULT";
 
 func main() {
 	err := os.Mkdir(uploadPath, os.ModeDir|0755)
 	if err != nil && !os.IsExist(err) {
 		panic(err)
 	}
+
+        // Read the secret
+        file, err := os.Open("secret.txt")
+        if err == nil {
+            reader := bufio.NewReader(file)
+            line, err := reader.ReadString('\n')
+            if err!=nil {
+                log.Fatal("Failed to read secret file")
+            }
+            secret=strings.TrimSpace(line)
+            log.Println("Set the secret to: " + secret)
+        } else {
+            log.Println("Warning: No secret specified, defaulting to: " + secret)
+        }
 
 	http.HandleFunc("/cycler", func(w http.ResponseWriter, r *http.Request) {
             http.ServeFile(w,r,filepath.Join(templatePath,"cycler.html"))
