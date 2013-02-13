@@ -25,16 +25,18 @@ const (
 )
 
 var templates = template.Must(template.ParseFiles(templatePath + "status.html"))
-var usernameValidator = regexp.MustCompile("^[a-zA-Z0-9_. ]+$")
+var titleValidator = regexp.MustCompile("^[a-zA-Z0-9_. ]+$")
 
 type StatusPage struct {
 	Message string
 }
 
+/*
 type Submission struct {
 	username  string
 	timestamp time.Time
 }
+*/
 
 var usercount int = 0
 var secret string = "DEFAULT";
@@ -140,12 +142,19 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		t := time.Now()
 		timestamp := t.Format("2006-01-02 15:04:05.000")
 
-		username := r.FormValue("username")
+		title := r.FormValue("title")
 
-		if !usernameValidator.MatchString(username) {
-			ServeStatus(w, &StatusPage{"Invalid Username"})
+		if !titleValidator.MatchString(title) {
+			ServeStatus(w, &StatusPage{"Invalid Title"})
 			return
 		}
+
+                _,err := os.Stat(filepath.Join(uploadPath,title))
+                if err==nil {
+                    ServeStatus(w, &StatusPage{"That title is taken"})
+                    log.Println(err)
+                    return
+                }
 
 		uploadFile, header, err := r.FormFile("file")
 		if err != nil {
@@ -158,7 +167,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		userDir := uploadPath + username + "/"
+		userDir := uploadPath + title + "/"
 
 		userArchiveDir := userDir + "archive/"
 
@@ -168,11 +177,12 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		zipPath := userArchiveDir + timestamp + ".zip"
+		zipPath := filepath.Join(userArchiveDir,timestamp+".zip")
 
 		osFile, err := os.Create(zipPath)
 		if err != nil {
 			ServeStatus(w, &StatusPage{"Error Creating File"})
+                        log.Println(err)
 			return
 		}
 
