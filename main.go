@@ -92,10 +92,13 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 			http.SetCookie(w, &cookie)
 			ServeStatus(w, &StatusPage{"Login Sucessful", "/submit", 1})
 			return
+		} else {
+			ServeStatus(w, &StatusPage{"Wrong password", "/auth", 1})
+			return
 		}
+	} else {
+		http.ServeFile(w, r, templatePath+"auth.html")
 	}
-
-	http.ServeFile(w, r, templatePath+"auth.html")
 }
 
 func RandomHandler(w http.ResponseWriter, r *http.Request) {
