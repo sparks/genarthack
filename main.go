@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"html/template"
 	"io"
 	"io/ioutil"
@@ -24,11 +25,13 @@ const (
 	cookieName   = "gahpsess"
 )
 
-var templates = template.Must(template.ParseFiles(templatePath + "status.html"))
+var templates = template.Must(template.ParseFiles(filepath.Join(templatePath, "status.html")))
 var titleValidator = regexp.MustCompile("^[a-zA-Z0-9_. ]+$")
 
 type StatusPage struct {
-	Message string
+	Message  string
+	Redirect string
+	Timeout  int
 }
 
 var usercount int = 0
@@ -54,6 +57,7 @@ func main() {
 	} else {
 		log.Println("Warning: No secret specified, defaulting to: " + secret)
 	}
+
 	// Create a random value for the cookies
 	bytes := make([]byte, 4)
 	n, err := rand.Read(bytes)
@@ -62,42 +66,43 @@ func main() {
 	}
 	secretVal = hex.EncodeToString(bytes)
 
+	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {}) //Prevent favicon unserved error
+
+	http.HandleFunc("/auth", AuthHandler)
+	http.HandleFunc("/submit", SubmitHandler)
+
+	http.Handle("/uploads/", http.StripPrefix("/uploads", http.FileServer(http.Dir(uploadPath))))
+	http.Handle("/resources/", http.StripPrefix("/resources", http.FileServer(http.Dir(resourcePath))))
+
+	http.HandleFunc("/random", RandomHandler)
 	http.HandleFunc("/cycler", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, filepath.Join(templatePath, "cycler.html"))
-
 	})
-	http.HandleFunc("/random", RandomHandler)
-	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {})
-	http.HandleFunc("/submit", SubmitHandler)
-	http.HandleFunc("/auth", AuthHandler)
-	http.Handle("/resources/", http.StripPrefix("/resources", http.FileServer(http.Dir(resourcePath))))
-	http.Handle("/uploads/", http.StripPrefix("/uploads", http.FileServer(http.Dir(uploadPath))))
 
 	http.ListenAndServe(":8080", nil)
 }
 
 func AuthHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
-		http.ServeFile(w, r, templatePath+"auth.html")
-	} else if r.Method == "POST" {
+	if r.Method == "POST" {
 		log.Printf("Password: %s\n", r.FormValue("pass"))
 		if r.FormValue("pass") == secret {
 			var cookie http.Cookie
 			cookie.Name = cookieName
 			cookie.Value = secretVal
 			http.SetCookie(w, &cookie)
-			http.ServeFile(w, r, templatePath+"success.html")
-		} else {
-			http.ServeFile(w, r, templatePath+"auth.html")
+			ServeStatus(w, &StatusPage{"Login Sucessful", "/submit", 1})
+			return
 		}
 	}
+
+	http.ServeFile(w, r, templatePath+"auth.html")
 }
 
 func RandomHandler(w http.ResponseWriter, r *http.Request) {
 	listing, err := ioutil.ReadDir(uploadPath)
 
 	if err != nil || len(listing) == 0 {
-		ServeStatus(w, &StatusPage{"No content"})
+		ServeStatus(w, &StatusPage{"No content", "/submit", 2})
 		return
 	}
 
@@ -111,7 +116,7 @@ func RandomHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(dirs) == 0 {
-		ServeStatus(w, &StatusPage{"No content"})
+		ServeStatus(w, &StatusPage{"No content", "/submit", 2})
 		return
 	}
 
@@ -125,10 +130,12 @@ func RandomHandler(w http.ResponseWriter, r *http.Request) {
 
 func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(cookieName)
+
 	if err != nil || cookie.Value != secretVal {
 		http.Redirect(w, r, "/auth", http.StatusTemporaryRedirect)
 		return
 	}
+
 	if r.Method == "GET" {
 		http.ServeFile(w, r, templatePath+"submit.html")
 	} else if r.Method == "POST" {
@@ -138,43 +145,46 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		title := r.FormValue("title")
 
 		if !titleValidator.MatchString(title) {
-			ServeStatus(w, &StatusPage{"Invalid Title"})
-			return
-		}
-
-		_, err := os.Stat(filepath.Join(uploadPath, title))
-		if err == nil {
-			ServeStatus(w, &StatusPage{"That title is taken"})
-			log.Println(err)
+			ServeStatus(w, &StatusPage{"Invalid Title", "", -1})
 			return
 		}
 
 		uploadFile, header, err := r.FormFile("file")
 		if err != nil {
-			ServeStatus(w, &StatusPage{"Invalid or Missing File"})
+			ServeStatus(w, &StatusPage{"Invalid or Missing File", "", -1})
 			return
 		}
 
 		if !strings.HasSuffix(header.Filename, ".zip") {
-			ServeStatus(w, &StatusPage{"Non Zip File"})
+			ServeStatus(w, &StatusPage{"Non Zip File", "", -1})
 			return
 		}
 
-		userDir := uploadPath + title + "/"
+		pieceDir := filepath.Join(uploadPath, title)
 
-		userArchiveDir := userDir + "archive/"
-
-		err = os.MkdirAll(userArchiveDir, os.ModeDir|0755)
-		if err != nil && !os.IsExist(err) {
-			ServeStatus(w, &StatusPage{"Error Making User Directories"})
+		err = os.Mkdir(pieceDir, os.ModeDir|0755)
+		if os.IsExist(err) {
+			ServeStatus(w, &StatusPage{"That title is taken", "", -1})
+			return
+		} else if err != nil {
+			ServeStatus(w, &StatusPage{"Error Making Piece Directories", "", -1})
 			return
 		}
 
-		zipPath := filepath.Join(userArchiveDir, timestamp+".zip")
+		pieceArchiveDir := filepath.Join(pieceDir, "archive")
+
+		err = os.MkdirAll(pieceArchiveDir, os.ModeDir|0755)
+
+		if err != nil {
+			ServeStatus(w, &StatusPage{"Error Making Piece Directories", "", -1})
+			return
+		}
+
+		zipPath := filepath.Join(pieceArchiveDir, timestamp+".zip")
 
 		osFile, err := os.Create(zipPath)
 		if err != nil {
-			ServeStatus(w, &StatusPage{"Error Creating File"})
+			ServeStatus(w, &StatusPage{"Error Creating File", "", -1})
 			log.Println(err)
 			return
 		}
@@ -185,16 +195,16 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		// Open a zip archive for reading
 		zipReader, err := zip.OpenReader(zipPath)
 		if err != nil {
-			ServeStatus(w, &StatusPage{"Malformed Zip"})
+			ServeStatus(w, &StatusPage{"Malformed Zip", "", -1})
 			return
 		}
 		defer zipReader.Close()
 
-		tmpUnzipDir := userDir + "tmp/"
+		tmpUnzipDir := filepath.Join(pieceDir, "tmp")
 
 		err = os.Mkdir(tmpUnzipDir, os.ModeDir|0755)
 		if err != nil && !os.IsExist(err) {
-			ServeStatus(w, &StatusPage{"Error Making Unzip Directory"})
+			ServeStatus(w, &StatusPage{"Error Making Unzip Directory", "", -1})
 			return
 		}
 
@@ -203,9 +213,9 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 
 		for _, zipFile := range zipReader.File {
 			if strings.HasSuffix(zipFile.Name, "/") {
-				os.MkdirAll(tmpUnzipDir+zipFile.Name, os.ModeDir|0755)
+				os.MkdirAll(filepath.Join(tmpUnzipDir, zipFile.Name), os.ModeDir|0755)
 			} else {
-				newFile, err := os.Create(tmpUnzipDir + zipFile.Name)
+				newFile, err := os.Create(filepath.Join(tmpUnzipDir, zipFile.Name))
 				if err != nil {
 					panic(err)
 					fileErr = true
@@ -229,7 +239,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if zipErr || fileErr {
-			p := &StatusPage{"Errors Unzipping:"}
+			p := &StatusPage{"Errors Unzipping:", "", -1}
 
 			if zipErr {
 				p.Message += " zip malformed"
@@ -245,39 +255,53 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		userLiveDir := userDir + "live/"
-		os.RemoveAll(userLiveDir)
-		// If there is only a single folder in this zip
-		// then that should be the top level
+		pieceLiveDir := filepath.Join(pieceDir, "live")
+		os.RemoveAll(pieceLiveDir)
 
-		files, err := ioutil.ReadDir(tmpUnzipDir)
+		rootTmpDir, err := findRoot(tmpUnzipDir)
 		if err != nil {
-			ServeStatus(w, &StatusPage{"Problem reading unzipped dir"})
+			log.Print("Problem finding root: ")
+			log.Println(err)
 		}
-		hasIndex := false
-		var fdir os.FileInfo
-		for _, finfo := range files {
-			if finfo.IsDir() {
-				fdir = finfo
-			} else {
-				if finfo.Name() == "index.html" {
-					hasIndex = true
-					break
-				}
-			}
-		}
-		if hasIndex {
-			err = os.Rename(tmpUnzipDir, userLiveDir)
-		} else {
-			err = os.Rename(filepath.Join(tmpUnzipDir, fdir.Name()), userLiveDir)
-		}
+
+		log.Println(rootTmpDir)
+		err = os.Rename(rootTmpDir, pieceLiveDir)
+
+		os.RemoveAll(tmpUnzipDir)
+
 		if err != nil {
-			ServeStatus(w, &StatusPage{"Problem Staging Project"})
+			log.Println(err)
+			ServeStatus(w, &StatusPage{"Problem Staging Project", "", -1})
 			return
 		}
 
-		ServeStatus(w, &StatusPage{"Sucessful Upload"})
+		ServeStatus(w, &StatusPage{"Sucessful Upload", pieceLiveDir, 2})
 	}
+}
+
+func findRoot(rootpath string) (string, error) {
+	files, err := ioutil.ReadDir(rootpath)
+	if err != nil {
+		log.Println("Problem reading directory during find root")
+		return rootpath, err
+	}
+
+	for _, finfo := range files {
+		if !finfo.IsDir() && strings.Contains(finfo.Name(), "index.htm") {
+			return rootpath, nil
+		}
+	}
+
+	for _, finfo := range files {
+		if finfo.IsDir() {
+			subpath, err := findRoot(filepath.Join(rootpath, finfo.Name()))
+			if err == nil {
+				return subpath, nil
+			}
+		}
+	}
+
+	return rootpath, errors.New("No index.html found anywhere in subdirectories")
 }
 
 func ServeStatus(w http.ResponseWriter, s *StatusPage) {
