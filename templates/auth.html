@@ -1,15 +1,20 @@
 <!DOCTYPE html>
 <html>
-    <head><title>Auth Required</title>
+<head>
+	<title>Auth Required</title>
+	
 	<link rel="stylesheet" type="text/css" href="/resources/style.css">
-    </head>
-    <body>
-    <h1>Hey! What's the Password?</h1>
+</head>
+<body>
 	<div class="stripe">
-    <form method="POST">
-        <input name="pass" type="text"/>
-        <input type="submit"/>
-    </form>
-</div>
-    </body>
+		<div class="form container">
+			<h1>Hey! What's the Password?</h1>
+			<form action="/auth" method="post">
+				<label for="pass">Password</label>
+				<input name="pass" type="text"/>
+				<input type="submit"/>
+			</form>
+		</div>
+	</div>
+</body>
 </html>
