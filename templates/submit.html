@@ -1,8 +1,26 @@
-<!DOCTYPE html>
+<!DOCTYPE HTML>
 <html>
 <head>
 	<title>Gen Art Hack Party</title>
+
 	<link rel="stylesheet" type="text/css" href="/resources/style.css">
+	<script type="text/javascript" src="/resources/jquery.js"></script>
+
+	<script type="text/javascript">
+	$(document).ready(function() {
+		$('input').bind('keypress', function (event) {
+			var regex = new RegExp("^[a-zA-Z0-9_. ]$");
+			var key = String.fromCharCode(!event.charCode ? event.which : event.charCode);
+			if (!regex.test(key) && (event.charCode > 31)) {
+				$(".warn").show();
+				event.preventDefault();
+				return false;
+			} else {
+				$(".warn").hide();
+			}
+		});
+	});
+	</script>
 </head>
 <body>
 	<div class="stripe">
@@ -10,9 +28,9 @@
 			<h1>Submit</h1>
 
 			<form action="/submit" method="post" enctype="multipart/form-data">
-				<label for="title">Piece title</label>
-				<input type="text" id="title" name="title" size="40" placeholder="Title" />
-				<span class="warn" style="display: none;">Title can only contain [a-zA-Z0-9_. ]</span>
+				<label for="username">Username</label>
+				<input type="text" id="username" name="username" size="40" placeholder="Username" />
+				<span class="warn" style="display: none;">Username can only contain [a-zA-Z0-9_. ]</span>
 
 				<label for="file">File</label>
 				<input type="file" id="file" name="file" />
