@@ -1,27 +1,27 @@
 package main
 
 import (
-        "path/filepath"
 	"archive/zip"
+	"bufio"
+	"crypto/rand"
+	"encoding/hex"
 	"html/template"
 	"io"
 	"io/ioutil"
-        "bufio"
+	"log"
 	"net/http"
 	"os"
-        "encoding/hex"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
-        "log"
-        "crypto/rand"
 )
 
 const (
 	resourcePath = "templates/resources/"
 	templatePath = "templates/"
 	uploadPath   = "uploads/"
-        cookieName = "gahpsess"
+	cookieName   = "gahpsess"
 )
 
 var templates = template.Must(template.ParseFiles(templatePath + "status.html"))
@@ -31,10 +31,9 @@ type StatusPage struct {
 	Message string
 }
 
-
 var usercount int = 0
-var secret string = "DEFAULT";
-var secretVal string;
+var secret string = "DEFAULT"
+var secretVal string
 
 func main() {
 	err := os.Mkdir(uploadPath, os.ModeDir|0755)
@@ -42,31 +41,31 @@ func main() {
 		panic(err)
 	}
 
-        // Read the secret
-        file, err := os.Open("secret.txt")
-        if err == nil {
-            reader := bufio.NewReader(file)
-            line, err := reader.ReadString('\n')
-            if err!=nil {
-                log.Fatal("Failed to read secret file")
-            }
-            secret=strings.TrimSpace(line)
-            log.Println("Set the secret to: " + secret)
-        } else {
-            log.Println("Warning: No secret specified, defaulting to: " + secret)
-        }
-        // Create a random value for the cookies
-        bytes := make([]byte,4)
-        n,err := rand.Read(bytes)
-        if err!=nil || n!=cap(bytes) {
-            log.Fatal("Failed to initalize random session value")
-        }
-        secretVal = hex.EncodeToString(bytes)
+	// Read the secret
+	file, err := os.Open("secret.txt")
+	if err == nil {
+		reader := bufio.NewReader(file)
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			log.Fatal("Failed to read secret file")
+		}
+		secret = strings.TrimSpace(line)
+		log.Println("Set the secret to: " + secret)
+	} else {
+		log.Println("Warning: No secret specified, defaulting to: " + secret)
+	}
+	// Create a random value for the cookies
+	bytes := make([]byte, 4)
+	n, err := rand.Read(bytes)
+	if err != nil || n != cap(bytes) {
+		log.Fatal("Failed to initalize random session value")
+	}
+	secretVal = hex.EncodeToString(bytes)
 
 	http.HandleFunc("/cycler", func(w http.ResponseWriter, r *http.Request) {
-            http.ServeFile(w,r,filepath.Join(templatePath,"cycler.html"))
+		http.ServeFile(w, r, filepath.Join(templatePath, "cycler.html"))
 
-        })
+	})
 	http.HandleFunc("/random", RandomHandler)
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {})
 	http.HandleFunc("/submit", SubmitHandler)
@@ -78,20 +77,20 @@ func main() {
 }
 
 func AuthHandler(w http.ResponseWriter, r *http.Request) {
-    if r.Method == "GET" {
-        http.ServeFile(w, r, templatePath+"auth.html")
-    } else if r.Method == "POST" {
-        log.Printf("Password: %s\n",r.FormValue("pass"))
-        if r.FormValue("pass") == secret {
-            var cookie http.Cookie
-            cookie.Name = cookieName
-            cookie.Value = secretVal
-            http.SetCookie(w, &cookie)
-            http.ServeFile(w, r, templatePath+"success.html")
-        } else {
-            http.ServeFile(w, r, templatePath+"auth.html")
-        }
-    }
+	if r.Method == "GET" {
+		http.ServeFile(w, r, templatePath+"auth.html")
+	} else if r.Method == "POST" {
+		log.Printf("Password: %s\n", r.FormValue("pass"))
+		if r.FormValue("pass") == secret {
+			var cookie http.Cookie
+			cookie.Name = cookieName
+			cookie.Value = secretVal
+			http.SetCookie(w, &cookie)
+			http.ServeFile(w, r, templatePath+"success.html")
+		} else {
+			http.ServeFile(w, r, templatePath+"auth.html")
+		}
+	}
 }
 
 func RandomHandler(w http.ResponseWriter, r *http.Request) {
@@ -125,11 +124,11 @@ func RandomHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func SubmitHandler(w http.ResponseWriter, r *http.Request) {
-        cookie, err := r.Cookie(cookieName)
-        if err != nil || cookie.Value != secretVal {
-            http.Redirect(w, r, "/auth",http.StatusTemporaryRedirect)
-            return
-        }
+	cookie, err := r.Cookie(cookieName)
+	if err != nil || cookie.Value != secretVal {
+		http.Redirect(w, r, "/auth", http.StatusTemporaryRedirect)
+		return
+	}
 	if r.Method == "GET" {
 		http.ServeFile(w, r, templatePath+"submit.html")
 	} else if r.Method == "POST" {
@@ -143,12 +142,12 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-                _,err := os.Stat(filepath.Join(uploadPath,title))
-                if err==nil {
-                    ServeStatus(w, &StatusPage{"That title is taken"})
-                    log.Println(err)
-                    return
-                }
+		_, err := os.Stat(filepath.Join(uploadPath, title))
+		if err == nil {
+			ServeStatus(w, &StatusPage{"That title is taken"})
+			log.Println(err)
+			return
+		}
 
 		uploadFile, header, err := r.FormFile("file")
 		if err != nil {
@@ -171,12 +170,12 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		zipPath := filepath.Join(userArchiveDir,timestamp+".zip")
+		zipPath := filepath.Join(userArchiveDir, timestamp+".zip")
 
 		osFile, err := os.Create(zipPath)
 		if err != nil {
 			ServeStatus(w, &StatusPage{"Error Creating File"})
-                        log.Println(err)
+			log.Println(err)
 			return
 		}
 
@@ -248,30 +247,30 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 
 		userLiveDir := userDir + "live/"
 		os.RemoveAll(userLiveDir)
-                // If there is only a single folder in this zip
-                // then that should be the top level
+		// If there is only a single folder in this zip
+		// then that should be the top level
 
-                files, err := ioutil.ReadDir(tmpUnzipDir)
-                if err != nil {
-                    ServeStatus(w, &StatusPage{"Problem reading unzipped dir"})
-                }
-                hasIndex := false
-                var fdir os.FileInfo;
-                for _, finfo := range files {
-                    if finfo.IsDir() {
-                        fdir = finfo
-                    } else {
-                        if finfo.Name()=="index.html" {
-                            hasIndex = true
-                            break
-                        }
-                    }
-                }
-                if hasIndex {
-                    err = os.Rename(tmpUnzipDir, userLiveDir)
-                } else {
-                    err = os.Rename(filepath.Join(tmpUnzipDir,fdir.Name()), userLiveDir)
-                }
+		files, err := ioutil.ReadDir(tmpUnzipDir)
+		if err != nil {
+			ServeStatus(w, &StatusPage{"Problem reading unzipped dir"})
+		}
+		hasIndex := false
+		var fdir os.FileInfo
+		for _, finfo := range files {
+			if finfo.IsDir() {
+				fdir = finfo
+			} else {
+				if finfo.Name() == "index.html" {
+					hasIndex = true
+					break
+				}
+			}
+		}
+		if hasIndex {
+			err = os.Rename(tmpUnzipDir, userLiveDir)
+		} else {
+			err = os.Rename(filepath.Join(tmpUnzipDir, fdir.Name()), userLiveDir)
+		}
 		if err != nil {
 			ServeStatus(w, &StatusPage{"Problem Staging Project"})
 			return
