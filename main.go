@@ -25,7 +25,7 @@ const (
 	cookieName   = "gahpsess"
 )
 
-var templates = template.Must(template.ParseFiles(filepath.Join(templatePath, "status.html")))
+var templates = template.Must(template.ParseFiles(filepath.Join(templatePath, "status.html"), filepath.Join(templatePath, "submit.html")))
 var titleValidator = regexp.MustCompile("^[a-zA-Z0-9_. ]+$")
 
 type StatusPage struct {
@@ -34,9 +34,10 @@ type StatusPage struct {
 	Timeout  int
 }
 
-var usercount int = 0
 var secret string = "DEFAULT"
 var secretVal string
+
+var pieceViewCount map[string]int
 
 func main() {
 	err := os.Mkdir(uploadPath, os.ModeDir|0755)
@@ -65,6 +66,16 @@ func main() {
 		log.Fatal("Failed to initalize random session value")
 	}
 	secretVal = hex.EncodeToString(bytes)
+
+	pieceViewCount = make(map[string]int)
+
+	listing, err := ioutil.ReadDir(uploadPath)
+
+	for _, fileInfo := range listing {
+		if fileInfo.IsDir() {
+			pieceViewCount[fileInfo.Name()] = 0
+		}
+	}
 
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {}) //Prevent favicon unserved error
 
@@ -102,33 +113,24 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func RandomHandler(w http.ResponseWriter, r *http.Request) {
-	listing, err := ioutil.ReadDir(uploadPath)
-
-	if err != nil || len(listing) == 0 {
+	if len(pieceViewCount) == 0 {
 		ServeStatus(w, &StatusPage{"No content", "/submit", 2})
 		return
 	}
 
-	dirs := make([]os.FileInfo, 0, len(listing))
+	minCount := -1
+	minTitle := ""
 
-	for _, fileInfo := range listing {
-		if fileInfo.IsDir() {
-			dirs = dirs[0 : len(dirs)+1]
-			dirs[len(dirs)-1] = fileInfo
+	for title, count := range pieceViewCount {
+		if minCount == -1 || minCount > count {
+			minCount = count
+			minTitle = title
 		}
 	}
 
-	if len(dirs) == 0 {
-		ServeStatus(w, &StatusPage{"No content", "/submit", 2})
-		return
-	}
+	pieceViewCount[minTitle]++
 
-	http.Redirect(w, r, "/"+uploadPath+dirs[usercount].Name()+"/live/", http.StatusFound)
-
-	usercount++
-	if usercount >= len(dirs) {
-		usercount = 0
-	}
+	http.Redirect(w, r, filepath.Join(uploadPath, minTitle, "live"), http.StatusFound)
 }
 
 func SubmitHandler(w http.ResponseWriter, r *http.Request) {
@@ -140,7 +142,13 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == "GET" {
-		http.ServeFile(w, r, templatePath+"submit.html")
+		templates = template.Must(template.ParseFiles(filepath.Join(templatePath, "status.html"), filepath.Join(templatePath, "submit.html")))
+
+		err := templates.ExecuteTemplate(w, "submit.html", &struct{ PieceMap map[string]int }{pieceViewCount})
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	} else if r.Method == "POST" {
 		t := time.Now()
 		timestamp := t.Format("2006-01-02 15:04:05.000")
@@ -167,8 +175,10 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 
 		err = os.Mkdir(pieceDir, os.ModeDir|0755)
 		if os.IsExist(err) {
-			ServeStatus(w, &StatusPage{"That title is taken", "", -1})
-			return
+			if r.FormValue("overwrite") == "" {
+				ServeStatus(w, &StatusPage{"Title already in use, check overwrite box to replace", "", -1})
+				return
+			}
 		} else if err != nil {
 			ServeStatus(w, &StatusPage{"Error Making Piece Directories", "", -1})
 			return
@@ -267,7 +277,6 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 			log.Println(err)
 		}
 
-		log.Println(rootTmpDir)
 		err = os.Rename(rootTmpDir, pieceLiveDir)
 
 		os.RemoveAll(tmpUnzipDir)
@@ -277,6 +286,8 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 			ServeStatus(w, &StatusPage{"Problem Staging Project", "", -1})
 			return
 		}
+
+		pieceViewCount[title] = 0
 
 		ServeStatus(w, &StatusPage{"Sucessful Upload", pieceLiveDir, 2})
 	}

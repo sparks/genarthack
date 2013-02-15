@@ -50,3 +50,18 @@ body {
 .warn {
 	color: red;
 }
+
+#overwritebox {
+	display: none;
+	color: rgb(255, 0, 0);
+	font-weight: bold;
+}
+
+#overwritebox label {
+	color: rgb(0, 0, 0);
+}
+
+#overwrite {
+	display: inline;
+	margin: auto;
+}

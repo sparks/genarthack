@@ -8,19 +8,38 @@
 
 	<script type="text/javascript">
 	$(document).ready(function() {
-		$('input').bind('keypress', function (event) {
+		var pieces = {{ .PieceMap }};
+
+		function checkTitle(title) {
+			for(var key in pieces) {
+				if(key == title) {
+					$("#overwritebox").show();
+					return;
+				}
+			}
+
+			$("#overwritebox").hide();
+		}
+
+		$('#title').bind('keyup', function (event) {
+			checkTitle($("#title").val());
+		});
+
+		$('#title').bind('keypress', function (event) {
 			var regex = new RegExp("^[a-zA-Z0-9_. ]$");
 			var key = String.fromCharCode(!event.charCode ? event.which : event.charCode);
-			if (!regex.test(key) && (event.charCode > 31)) {
+			if(!regex.test(key) && (event.charCode > 31)) {
 				$(".warn").show();
 				event.preventDefault();
-				return false;
 			} else {
 				$(".warn").hide();
 			}
 		});
+
+		checkTitle($("#title").val());
 	});
 	</script>
+
 </head>
 <body>
 	<div class="stripe">
@@ -34,6 +53,12 @@
 
 				<label for="file">File</label>
 				<input type="file" id="file" name="file" />
+
+				<div id="overwritebox">
+					<label for="overwrite">Overwrite?!</label>
+					<p>STOP! Check this only if you want to overwrite an existing project</p>
+					<p><input style="display: inline; margin: auto;" type="checkbox" id="overwrite" name="overwrite" value="true"> Confirm Overwrite</p>
+				</div>
 
 				<input type="submit" id="submit" value="Submit" />
 			</form>
