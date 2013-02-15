@@ -38,7 +38,7 @@ type StatusPage struct {
 var secret string = "DEFAULT"
 var secretVal string
 
-var pieceViewCount map[string]int
+var pieceViewCount map[string]int64
 
 func main() {
 	err := os.Mkdir(uploadPath, os.ModeDir|0755)
@@ -103,7 +103,7 @@ func RebuildHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func RebuildPieceMap() {
-	pieceViewCount = make(map[string]int)
+	newPieceViewCount := make(map[string]int64)
 
 	listing, err := ioutil.ReadDir(livePath)
 	if err != nil {
@@ -113,13 +113,21 @@ func RebuildPieceMap() {
 
 	for _, fileInfo := range listing {
 		if fileInfo.IsDir() {
-			pieceViewCount[fileInfo.Name()] = 0
+			elem, ok := pieceViewCount[fileInfo.Name()]
+
+			if !ok {
+				newPieceViewCount[fileInfo.Name()] = 0
+			} else {
+				newPieceViewCount[fileInfo.Name()] = elem
+			}
 		}
 	}
+
+	pieceViewCount = newPieceViewCount
 }
 
 func MainHandler(w http.ResponseWriter, r *http.Request) {
-	err := templates.ExecuteTemplate(w, "main.html", &struct{ PieceMap map[string]int }{pieceViewCount})
+	err := templates.ExecuteTemplate(w, "main.html", &struct{ PieceMap map[string]int64 }{pieceViewCount})
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -151,7 +159,7 @@ func RandomHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	minCount := -1
+	minCount := int64(-1)
 	minTitle := ""
 
 	for title, count := range pieceViewCount {
@@ -161,7 +169,7 @@ func RandomHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	pieceViewCount[minTitle]++
+	pieceViewCount[minTitle] = time.Now().Unix()
 
 	if len(r.URL.Query()) > 0 {
 		http.Redirect(w, r, filepath.Join(livePath, minTitle)+"?"+r.URL.Query().Encode(), http.StatusFound)
@@ -179,7 +187,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == "GET" {
-		err := templates.ExecuteTemplate(w, "submit.html", &struct{ PieceMap map[string]int }{pieceViewCount})
+		err := templates.ExecuteTemplate(w, "submit.html", &struct{ PieceMap map[string]int64 }{pieceViewCount})
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -207,15 +215,23 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		pieceDir := filepath.Join(uploadPath, title)
-
 		err = os.Mkdir(pieceDir, os.ModeDir|0755)
+
+		if err != nil && !os.IsExist(err) {
+			ServeStatus(w, &StatusPage{"Error Making Piece Directories", "", -1})
+			return
+		}
+
+		pieceLiveDir := filepath.Join(livePath, title)
+		err = os.Mkdir(pieceLiveDir, os.ModeDir|0755)
+
 		if os.IsExist(err) {
 			if r.FormValue("overwrite") == "" {
 				ServeStatus(w, &StatusPage{"Title already in use, check overwrite box to replace", "", -1})
 				return
 			}
 		} else if err != nil {
-			ServeStatus(w, &StatusPage{"Error Making Piece Directories", "", -1})
+			ServeStatus(w, &StatusPage{"Error Making Piece Live Directories", "", -1})
 			return
 		}
 
@@ -303,15 +319,13 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		pieceLiveDir := filepath.Join(livePath, title)
-		os.RemoveAll(pieceLiveDir)
-
 		rootTmpDir, err := FindRoot(tmpUnzipDir)
 		if err != nil {
 			log.Print("Problem finding root: ")
 			log.Println(err)
 		}
 
+		os.RemoveAll(pieceLiveDir)
 		err = os.Rename(rootTmpDir, pieceLiveDir)
 
 		os.RemoveAll(tmpUnzipDir)
