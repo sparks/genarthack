@@ -67,15 +67,7 @@ func main() {
 	}
 	secretVal = hex.EncodeToString(bytes)
 
-	pieceViewCount = make(map[string]int)
-
-	listing, err := ioutil.ReadDir(uploadPath)
-
-	for _, fileInfo := range listing {
-		if fileInfo.IsDir() {
-			pieceViewCount[fileInfo.Name()] = 0
-		}
-	}
+	RebuildPieceMap()
 
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {}) //Prevent favicon unserved error
 
@@ -90,14 +82,36 @@ func main() {
 		http.ServeFile(w, r, filepath.Join(templatePath, "cycler.html"))
 	})
 
+	http.HandleFunc("/rebuild", RebuildHandler)
+
 	http.HandleFunc("/", MainHandler)
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-func MainHandler(w http.ResponseWriter, r *http.Request) {
-	var templates = template.Must(template.ParseFiles(filepath.Join(templatePath, "main.html"), filepath.Join(templatePath, "status.html"), filepath.Join(templatePath, "submit.html")))
+func RebuildHandler(w http.ResponseWriter, r *http.Request) {
+	RebuildPieceMap()
 
+	ServeStatus(w, &StatusPage{"Piece Map Rebuilt", "/", 2})
+}
+
+func RebuildPieceMap() {
+	pieceViewCount = make(map[string]int)
+
+	listing, err := ioutil.ReadDir(uploadPath)
+	if err != nil {
+		log.Println("Problem reading upload dir during rebuild")
+		return
+	}
+
+	for _, fileInfo := range listing {
+		if fileInfo.IsDir() {
+			pieceViewCount[fileInfo.Name()] = 0
+		}
+	}
+}
+
+func MainHandler(w http.ResponseWriter, r *http.Request) {
 	err := templates.ExecuteTemplate(w, "main.html", &struct{ PieceMap map[string]int }{pieceViewCount})
 
 	if err != nil {
@@ -142,7 +156,11 @@ func RandomHandler(w http.ResponseWriter, r *http.Request) {
 
 	pieceViewCount[minTitle]++
 
-	http.Redirect(w, r, filepath.Join(uploadPath, minTitle, "live")+"?"+r.URL.Query().Encode(), http.StatusFound)
+	if len(r.URL.Query()) > 0 {
+		http.Redirect(w, r, filepath.Join(uploadPath, minTitle, "live")+"?"+r.URL.Query().Encode(), http.StatusFound)
+	} else {
+		http.Redirect(w, r, filepath.Join(uploadPath, minTitle, "live"), http.StatusFound)
+	}
 }
 
 func SubmitHandler(w http.ResponseWriter, r *http.Request) {
@@ -281,7 +299,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		pieceLiveDir := filepath.Join(pieceDir, "live")
 		os.RemoveAll(pieceLiveDir)
 
-		rootTmpDir, err := findRoot(tmpUnzipDir)
+		rootTmpDir, err := FindRoot(tmpUnzipDir)
 		if err != nil {
 			log.Print("Problem finding root: ")
 			log.Println(err)
@@ -303,7 +321,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func findRoot(rootpath string) (string, error) {
+func FindRoot(rootpath string) (string, error) {
 	files, err := ioutil.ReadDir(rootpath)
 	if err != nil {
 		log.Println("Problem reading directory during find root")
@@ -318,7 +336,7 @@ func findRoot(rootpath string) (string, error) {
 
 	for _, finfo := range files {
 		if finfo.IsDir() {
-			subpath, err := findRoot(filepath.Join(rootpath, finfo.Name()))
+			subpath, err := FindRoot(filepath.Join(rootpath, finfo.Name()))
 			if err == nil {
 				return subpath, nil
 			}
