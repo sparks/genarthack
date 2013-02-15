@@ -1,4 +1,5 @@
 .DS_Store
 *.swp
 uploads/
+live/
 secret.txt

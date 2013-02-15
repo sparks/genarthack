@@ -22,6 +22,7 @@ const (
 	resourcePath = "templates/resources/"
 	templatePath = "templates/"
 	uploadPath   = "uploads/"
+	livePath     = "live/"
 	cookieName   = "gahpsess"
 )
 
@@ -41,6 +42,11 @@ var pieceViewCount map[string]int
 
 func main() {
 	err := os.Mkdir(uploadPath, os.ModeDir|0755)
+	if err != nil && !os.IsExist(err) {
+		panic(err)
+	}
+
+	err = os.Mkdir(livePath, os.ModeDir|0755)
 	if err != nil && !os.IsExist(err) {
 		panic(err)
 	}
@@ -75,6 +81,7 @@ func main() {
 	http.HandleFunc("/submit", SubmitHandler)
 
 	http.Handle("/uploads/", http.StripPrefix("/uploads", http.FileServer(http.Dir(uploadPath))))
+	http.Handle("/live/", http.StripPrefix("/live", http.FileServer(http.Dir(livePath))))
 	http.Handle("/resources/", http.StripPrefix("/resources", http.FileServer(http.Dir(resourcePath))))
 
 	http.HandleFunc("/random", RandomHandler)
@@ -157,9 +164,9 @@ func RandomHandler(w http.ResponseWriter, r *http.Request) {
 	pieceViewCount[minTitle]++
 
 	if len(r.URL.Query()) > 0 {
-		http.Redirect(w, r, filepath.Join(uploadPath, minTitle, "live")+"?"+r.URL.Query().Encode(), http.StatusFound)
+		http.Redirect(w, r, filepath.Join(livePath, minTitle)+"?"+r.URL.Query().Encode(), http.StatusFound)
 	} else {
-		http.Redirect(w, r, filepath.Join(uploadPath, minTitle, "live"), http.StatusFound)
+		http.Redirect(w, r, filepath.Join(livePath, minTitle), http.StatusFound)
 	}
 }
 
@@ -296,7 +303,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		pieceLiveDir := filepath.Join(pieceDir, "live")
+		pieceLiveDir := filepath.Join(livePath, title)
 		os.RemoveAll(pieceLiveDir)
 
 		rootTmpDir, err := FindRoot(tmpUnzipDir)
