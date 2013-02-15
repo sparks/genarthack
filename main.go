@@ -142,7 +142,7 @@ func RandomHandler(w http.ResponseWriter, r *http.Request) {
 
 	pieceViewCount[minTitle]++
 
-	http.Redirect(w, r, filepath.Join(uploadPath, minTitle, "live"), http.StatusFound)
+	http.Redirect(w, r, filepath.Join(uploadPath, minTitle, "live")+"?"+r.URL.Query().Encode(), http.StatusFound)
 }
 
 func SubmitHandler(w http.ResponseWriter, r *http.Request) {

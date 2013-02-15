@@ -8,7 +8,7 @@
 			var t=10000;
 			
 			(function looper() {
-				f.contentWindow.location = "/random"
+				f.contentWindow.location = "/random?live=false"
 				setTimeout(looper, t);
 			})();
 		};
