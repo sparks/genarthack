@@ -25,8 +25,8 @@ const (
 	cookieName   = "gahpsess"
 )
 
-var templates = template.Must(template.ParseFiles(filepath.Join(templatePath, "status.html"), filepath.Join(templatePath, "submit.html")))
-var titleValidator = regexp.MustCompile("^[a-zA-Z0-9_. ]+$")
+var templates = template.Must(template.ParseFiles(filepath.Join(templatePath, "main.html"), filepath.Join(templatePath, "status.html"), filepath.Join(templatePath, "submit.html")))
+var titleValidator = regexp.MustCompile("^[a-zA-Z0-9_.]+$")
 
 type StatusPage struct {
 	Message  string
@@ -90,7 +90,19 @@ func main() {
 		http.ServeFile(w, r, filepath.Join(templatePath, "cycler.html"))
 	})
 
+	http.HandleFunc("/", MainHandler)
+
 	http.ListenAndServe(":8080", nil)
+}
+
+func MainHandler(w http.ResponseWriter, r *http.Request) {
+	var templates = template.Must(template.ParseFiles(filepath.Join(templatePath, "main.html"), filepath.Join(templatePath, "status.html"), filepath.Join(templatePath, "submit.html")))
+
+	err := templates.ExecuteTemplate(w, "main.html", &struct{ PieceMap map[string]int }{pieceViewCount})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func AuthHandler(w http.ResponseWriter, r *http.Request) {
@@ -142,8 +154,6 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == "GET" {
-		templates = template.Must(template.ParseFiles(filepath.Join(templatePath, "status.html"), filepath.Join(templatePath, "submit.html")))
-
 		err := templates.ExecuteTemplate(w, "submit.html", &struct{ PieceMap map[string]int }{pieceViewCount})
 
 		if err != nil {

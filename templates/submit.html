@@ -4,6 +4,7 @@
 	<title>Gen Art Hack Party</title>
 
 	<link rel="stylesheet" type="text/css" href="/resources/style.css">
+
 	<script type="text/javascript" src="/resources/jquery.js"></script>
 
 	<script type="text/javascript">
@@ -26,7 +27,7 @@
 		});
 
 		$('#title').bind('keypress', function (event) {
-			var regex = new RegExp("^[a-zA-Z0-9_. ]$");
+			var regex = new RegExp("^[a-zA-Z0-9_.]$");
 			var key = String.fromCharCode(!event.charCode ? event.which : event.charCode);
 			if(!regex.test(key) && (event.charCode > 31)) {
 				$(".warn").show();
@@ -39,7 +40,6 @@
 		checkTitle($("#title").val());
 	});
 	</script>
-
 </head>
 <body>
 	<div class="stripe">
@@ -57,7 +57,7 @@
 				<div id="overwritebox">
 					<label for="overwrite">Overwrite?!</label>
 					<p>STOP! Check this only if you want to overwrite an existing project</p>
-					<p><input style="display: inline; margin: auto;" type="checkbox" id="overwrite" name="overwrite" value="true"> Confirm Overwrite</p>
+					<p><input style="display: inline; margin: auto;" type="checkbox" id="overwrite" name="overwrite" value="true" /> Confirm Overwrite</p>
 				</div>
 
 				<input type="submit" id="submit" value="Submit" />
