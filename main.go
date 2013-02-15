@@ -105,7 +105,7 @@ func RebuildHandler(w http.ResponseWriter, r *http.Request) {
 func RebuildPieceMap() {
 	pieceViewCount = make(map[string]int)
 
-	listing, err := ioutil.ReadDir(uploadPath)
+	listing, err := ioutil.ReadDir(livePath)
 	if err != nil {
 		log.Println("Problem reading upload dir during rebuild")
 		return
