@@ -92,7 +92,7 @@ func main() {
 
 	http.HandleFunc("/", MainHandler)
 
-	http.ListenAndServe(":8080", nil)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func MainHandler(w http.ResponseWriter, r *http.Request) {
