@@ -12,14 +12,19 @@
 		var pieces = {{ .PieceMap }};
 		var $grid = $("#grid");
 
+		var i = 0;
+
 		for (key in pieces) {
 			var $li = $(document.createElement('li'));
+			$li.attr("class", "li-"+(i%8));
 			$grid.append($li);
 
 			var $a = $(document.createElement('a'));
-			$a.attr("href", "/uploads/"+key);
+			$a.attr("href", "/uploads/"+key+"/live");
 			$a.html(key);
 			$li.append($a);
+
+			i++;
 		}
 	});
 	</script>
@@ -77,18 +82,75 @@
 		.navmenu .li-1 a:hover {background:none; color:black;}
 
 		#content {
-			max-width:821px;
+			width:820px;
 			margin:auto;
+			padding: 0px;
+			text-align: center;
 		}
 
-		#grid ul {
+		#grid {
 			list-style: none;
-			
+			margin: 20px auto 25px auto;
 		}
 
-		#grid ul li {
-			display: inline;
-			background-color: red;
+		#grid li {
+			float: left;
+			height: 130px;
+			width: 240px;
+			margin: 5px;
+			padding: 0px;
+			white-space: nowrap;
+			overflow: hidden;
+		}
+
+		#grid li a {
+			display: block;
+			padding-top: 35px;
+			height: 100%;
+			width: 100%;
+		}
+
+		#grid .li-0 {
+			background-color: hsl(0,50%,40%);
+		}
+		#grid .li-1 {
+			background-color: hsl(30,50%,40%);
+		}
+		#grid .li-2 {
+			background-color: hsl(60,50%,40%);
+		}
+		#grid .li-3 {
+			background-color: hsl(90,50%,40%);
+		}
+		#grid .li-4 {
+			background-color: hsl(120,50%,40%);
+		}
+		#grid .li-5 {
+			background-color: hsl(150,50%,40%);
+		}
+		#grid .li-6 {
+			background-color: hsl(180,50%,40%);
+		}
+		#grid .li-7 {
+			background-color: hsl(210,50%,40%);
+		}
+
+		#grid li:hover {
+			background:none;
+		}
+
+		#grid li a {
+			text-transform:uppercase;
+			text-align:center;
+			font-family: 'Open Sans', sans-serif;
+			font-size:35px;
+			text-decoration:none;
+
+			color:white;
+		}
+
+		#grid li a:hover {
+			color:black;
 		}
 	</style>
 </head>
