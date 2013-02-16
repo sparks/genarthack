@@ -26,7 +26,7 @@ const (
 	cookieName   = "gahpsess"
 )
 
-var templates = template.Must(template.ParseFiles(filepath.Join(templatePath, "main.html"), filepath.Join(templatePath, "status.html"), filepath.Join(templatePath, "submit.html"), filepath.Join(templatePath, "nominate.html")))
+var templates = template.Must(template.ParseFiles(filepath.Join(templatePath, "main.html"), filepath.Join(templatePath, "status.html"), filepath.Join(templatePath, "submit.html"), filepath.Join(templatePath, "nominate.html"), filepath.Join(templatePath, "nominees.html")))
 var titleValidator = regexp.MustCompile("^[a-zA-Z0-9_.]+$")
 var indexValidator = regexp.MustCompile("(?i)^index.htm[l]*$")
 
@@ -86,6 +86,7 @@ func main() {
 	http.Handle("/resources/", http.StripPrefix("/resources", http.FileServer(http.Dir(resourcePath))))
 
 	http.HandleFunc("/nominate", NominateHandler)
+	http.HandleFunc("/nominees", NomineeHandler)
 	http.HandleFunc("/random", RandomHandler)
 	http.HandleFunc("/cycler", CyclerHandler)
 
@@ -102,6 +103,14 @@ func LiveHandler(w http.ResponseWriter, r *http.Request) {
 	http.StripPrefix("/live", http.FileServer(http.Dir(livePath))).ServeHTTP(w, r)
 }
 
+func NomineeHandler(w http.ResponseWriter, r *http.Request) {
+	nominees := NomineeList()
+	err := templates.ExecuteTemplate(w, "nominees.html", &struct{ Nominees []string }{nominees})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+}
 func NominateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		title := r.FormValue("title")
@@ -142,6 +151,19 @@ func RebuildHandler(w http.ResponseWriter, r *http.Request) {
 	ServeStatus(w, &StatusPage{"Piece Map Rebuilt", "/", 2})
 }
 
+func NomineeList() (lines []string) {
+	file, err := os.Open("nominees.txt")
+	if err != nil {
+		return
+	}
+	reader := bufio.NewReader(file)
+	wholefile, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return
+	}
+	lines = strings.Split(string(wholefile), "\n")
+	return
+}
 func RebuildPieceMap() {
 	newPieceViewCount := make(map[string]int64)
 

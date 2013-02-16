@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Demo Cycler</title>
+	<script type="text/javascript">
+		window.onload = function() {
+      var pieces = {{ .Nominees }};
+      pieces = pieces.filter(function(s) {return s.length>0})
+			var f = document.getElementById("theframe");
+			var namediv = document.getElementById("name");
+			var t=5000;
+        function pieceURL(piece) {
+            return "/live/"+piece;
+        }
+        function showPiece(piece) {
+            f.contentWindow.location = pieceURL(piece);
+            namediv.innerHTML = piece;
+        }
+        if (window.location.href.indexOf("pres")>-1) {
+            var showedI = 0;
+            window.addEventListener('keyup', function(evt) {
+                    if (evt.keyCode == 32) {
+                        var name = pieces[showedI]
+                        showPiece(name);
+                        showedI=(showedI+1)%pieces.length;
+                    }
+                });
+
+      } else {
+          (function looper() {
+           var i = Math.floor(Math.random()*pieces.length);
+           showPiece(pieces[i])
+            setTimeout(looper, t);
+          })();
+      }
+		};
+	</script>
+	<style type="text/css">
+		body {
+			margin: 0; padding: 0; height: 100%;
+		}
+
+		iframe {
+			position: relative;
+			top: -5px;
+			margin: 0; padding: 0; border:none;
+			width:100%; height:100%;
+			position:absolute;
+		}
+    #name {
+        position: fixed;
+        bottom: 0px;
+        right:0px;
+        display:block;
+        font-size:20pt;
+        background-color:white;
+        padding:15px;
+    }
+	</style>
+</head>
+<body>
+	<iframe id="theframe" scrolling="no"></iframe>
+  <div id="name">n</div>
+</body>
+</html>
