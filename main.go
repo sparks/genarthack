@@ -104,29 +104,29 @@ func LiveHandler(w http.ResponseWriter, r *http.Request) {
 
 func NominateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
-	    title := r.FormValue("title")
-	    _, exists := pieceViewCount[title]
-            if !exists {
-		ServeStatus(w, &StatusPage{"That piece does not exist!", "", -1});
-		return
-            }
-            file, err := os.OpenFile("nominees.txt",os.O_RDWR|os.O_APPEND, 0666);
-	    defer file.Close()
-            if err!=nil {
-                ServeStatus(w, &StatusPage{"Nomination file borked","", -1});
-                return
-            }
-	    file.WriteString(title)
-	    file.WriteString("\n")
-	    ServeStatus(w, &StatusPage{"Nomination successful", "/", 4})
-        } else if r.Method == "GET" {
-            RebuildPieceMap()
-            err := templates.ExecuteTemplate(w,"nominate.html", &struct{ PieceMap map[string]int64 }{pieceViewCount})
-            if err != nil {
-                    http.Error(w, err.Error(), http.StatusInternalServerError)
-            }
+		title := r.FormValue("title")
+		_, exists := pieceViewCount[title]
+		if !exists {
+			ServeStatus(w, &StatusPage{"That piece does not exist!", "", -1})
+			return
+		}
+		file, err := os.OpenFile("nominees.txt", os.O_RDWR|os.O_APPEND, 0666)
+		defer file.Close()
+		if err != nil {
+			ServeStatus(w, &StatusPage{"Nomination file borked", "", -1})
+			return
+		}
+		file.WriteString(title)
+		file.WriteString("\n")
+		ServeStatus(w, &StatusPage{"Nomination successful", "/", 4})
+	} else if r.Method == "GET" {
+		RebuildPieceMap()
+		err := templates.ExecuteTemplate(w, "nominate.html", &struct{ PieceMap map[string]int64 }{pieceViewCount})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 
-        }
+	}
 
 }
 
