@@ -277,10 +277,16 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		zipErr := false
 
 		for _, zipFile := range zipReader.File {
-			if strings.HasSuffix(zipFile.Name, "/") {
-				os.MkdirAll(filepath.Join(tmpUnzipDir, zipFile.Name), os.ModeDir|0755)
-			} else {
+			dir, file := filepath.Split(zipFile.Name)
+
+			if dir != "" {
+				os.MkdirAll(filepath.Join(tmpUnzipDir, dir), os.ModeDir|0755)
+			}
+
+			if file != "" {
 				newFile, err := os.Create(filepath.Join(tmpUnzipDir, zipFile.Name))
+				log.Println(filepath.Join(tmpUnzipDir, zipFile.Name))
+
 				if err != nil {
 					panic(err)
 					fileErr = true
