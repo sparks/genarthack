@@ -82,19 +82,29 @@ func main() {
 	http.HandleFunc("/submit", SubmitHandler)
 
 	http.Handle("/uploads/", http.StripPrefix("/uploads", http.FileServer(http.Dir(uploadPath))))
-	http.Handle("/live/", http.StripPrefix("/live", http.FileServer(http.Dir(livePath))))
+	http.HandleFunc("/live/", LiveHandler)
 	http.Handle("/resources/", http.StripPrefix("/resources", http.FileServer(http.Dir(resourcePath))))
 
 	http.HandleFunc("/random", RandomHandler)
-	http.HandleFunc("/cycler", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, filepath.Join(templatePath, "cycler.html"))
-	})
+	http.HandleFunc("/cycler", CyclerHandler)
 
 	http.HandleFunc("/rebuild", RebuildHandler)
 
 	http.HandleFunc("/", MainHandler)
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func LiveHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Cache-Control", "no-cache, must-revalidate")
+	w.Header().Add("Expires", "Sat, 26 Jul 1997 05:00:00 GMT")
+	http.StripPrefix("/live", http.FileServer(http.Dir(livePath))).ServeHTTP(w, r)
+}
+
+func CyclerHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Cache-Control", "no-cache, must-revalidate")
+	w.Header().Add("Expires", "Sat, 26 Jul 1997 05:00:00 GMT")
+	http.ServeFile(w, r, filepath.Join(templatePath, "cycler.html"))
 }
 
 func RebuildHandler(w http.ResponseWriter, r *http.Request) {
@@ -285,7 +295,6 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 
 			if file != "" {
 				newFile, err := os.Create(filepath.Join(tmpUnzipDir, zipFile.Name))
-				log.Println(filepath.Join(tmpUnzipDir, zipFile.Name))
 
 				if err != nil {
 					panic(err)
