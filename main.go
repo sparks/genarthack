@@ -28,7 +28,7 @@ const (
 
 var templates = template.Must(template.ParseFiles(filepath.Join(templatePath, "main.html"), filepath.Join(templatePath, "status.html"), filepath.Join(templatePath, "submit.html")))
 var titleValidator = regexp.MustCompile("^[a-zA-Z0-9_.]+$")
-var indexValidator = regexp.MustCompile("^index.htm[l]*$")
+var indexValidator = regexp.MustCompile("(?i)^index.htm[l]*$")
 
 type StatusPage struct {
 	Message  string
@@ -198,6 +198,8 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == "GET" {
+		RebuildPieceMap()
+
 		err := templates.ExecuteTemplate(w, "submit.html", &struct{ PieceMap map[string]int64 }{pieceViewCount})
 
 		if err != nil {
@@ -252,6 +254,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			ServeStatus(w, &StatusPage{"Error Making Piece Directories", "", -1})
+			os.RemoveAll(pieceLiveDir)
 			return
 		}
 
@@ -260,6 +263,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		osFile, err := os.Create(zipPath)
 		if err != nil {
 			ServeStatus(w, &StatusPage{"Error Creating File", "", -1})
+			os.RemoveAll(pieceLiveDir)
 			log.Println(err)
 			return
 		}
@@ -271,6 +275,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		zipReader, err := zip.OpenReader(zipPath)
 		if err != nil {
 			ServeStatus(w, &StatusPage{"Malformed Zip", "", -1})
+			os.RemoveAll(pieceLiveDir)
 			return
 		}
 		defer zipReader.Close()
@@ -280,6 +285,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		err = os.Mkdir(tmpUnzipDir, os.ModeDir|0755)
 		if err != nil && !os.IsExist(err) {
 			ServeStatus(w, &StatusPage{"Error Making Unzip Directory", "", -1})
+			os.RemoveAll(pieceLiveDir)
 			return
 		}
 
@@ -332,6 +338,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 			os.RemoveAll(tmpUnzipDir)
 
 			ServeStatus(w, p)
+			os.RemoveAll(pieceLiveDir)
 			return
 		}
 
@@ -339,6 +346,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Print("Problem finding root: ")
 			log.Println(err)
+			os.RemoveAll(pieceLiveDir)
 			ServeStatus(w, &StatusPage{"There was no index.html anywhere in your project.", "", -1})
 			return
 		}
@@ -351,6 +359,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Println(err)
 			ServeStatus(w, &StatusPage{"Problem Staging Project", "", -1})
+			os.RemoveAll(pieceLiveDir)
 			return
 		}
 
