@@ -28,6 +28,7 @@ const (
 
 var templates = template.Must(template.ParseFiles(filepath.Join(templatePath, "main.html"), filepath.Join(templatePath, "status.html"), filepath.Join(templatePath, "submit.html")))
 var titleValidator = regexp.MustCompile("^[a-zA-Z0-9_.]+$")
+var indexValidator = regexp.MustCompile("^index.htm[l]*$")
 
 type StatusPage struct {
 	Message  string
@@ -323,6 +324,8 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Print("Problem finding root: ")
 			log.Println(err)
+			ServeStatus(w, &StatusPage{"There was no index.html anywhere in your project.", "", -1})
+			return
 		}
 
 		os.RemoveAll(pieceLiveDir)
@@ -350,7 +353,7 @@ func FindRoot(rootpath string) (string, error) {
 	}
 
 	for _, finfo := range files {
-		if !finfo.IsDir() && strings.Contains(finfo.Name(), "index.htm") {
+		if !finfo.IsDir() && indexValidator.MatchString(finfo.Name()) {
 			return rootpath, nil
 		}
 	}
