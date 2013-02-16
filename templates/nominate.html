@@ -1,0 +1,57 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<title>Gen Art Hack Party</title>
+
+	<link rel="stylesheet" type="text/css" href="/resources/style.css">
+
+	<script type="text/javascript" src="/resources/jquery.js"></script>
+
+	<script type="text/javascript">
+	$(document).ready(function() {
+		var pieces = {{ .PieceMap }};
+
+		function checkTitle(title) {
+			for(var key in pieces) {
+				if(key == title) {
+					$("#submit").removeAttr('disabled');
+					return;
+				}
+			}
+      $("#submit").attr('disabled','disabled');
+
+		}
+
+		$('#title').bind('keyup', function (event) {
+			checkTitle($("#title").val());
+		});
+
+		$('#title').bind('keypress', function (event) {
+			var regex = new RegExp("^[a-zA-Z0-9_.]$");
+			var key = String.fromCharCode(!event.charCode ? event.which : event.charCode);
+			if(!regex.test(key) && (event.charCode > 31)) {
+				$(".warn").show();
+				event.preventDefault();
+			} else {
+				$(".warn").hide();
+			}
+		});
+
+		checkTitle($("#title").val());
+	});
+	</script>
+</head>
+<body>
+	<div class="stripe">
+		<div class="form container">
+			<h1>Nominate ONE of your pieces!</h1>
+
+      <form action="/nominate" method="post">
+				<label for="title">Piece Title</label>
+				<input type="text" id="title" name="title" size="40" placeholder="Title" />
+				<input type="submit" id="submit" value="Submit" disabled="disabled" />
+			</form>
+		</div>
+	</div>
+</body>
+</html>
