@@ -8,7 +8,7 @@
       pieces = pieces.filter(function(s) {return s.length>0})
 			var f = document.getElementById("theframe");
 			var namediv = document.getElementById("name");
-			var t=5000;
+			var t=30000;
         function pieceURL(piece) {
             return "/live/"+piece;
         }
@@ -20,12 +20,22 @@
             var showedI = 0;
             window.addEventListener('keyup', function(evt) {
                     if (evt.keyCode == 32) {
+                        showedI=(showedI+1)%pieces.length;
                         var name = pieces[showedI]
                         showPiece(name);
-                        showedI=(showedI+1)%pieces.length;
+                    } 
+                    if (evt.keyCode == 66) {
+                        showedI=(showedI-1);
+                        if (showedI<0) {
+                            showedI+=pieces.length;
+                        }
+                        var name = pieces[showedI]
+                        showPiece(name);
+                    }
+                    if (evt.keyCode == 82) {
+                        f.contentWindow.location.reload();
                     }
                 });
-
       } else {
           (function looper() {
            var i = Math.floor(Math.random()*pieces.length);
@@ -55,6 +65,7 @@
         font-size:20pt;
         background-color:white;
         padding:15px;
+        border: 1px solid black;
     }
 	</style>
 </head>
