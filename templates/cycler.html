@@ -5,7 +5,7 @@
 	<script type="text/javascript">
 		window.onload = function() {
 			var f = document.getElementById("theframe");
-			var t=10000;
+			var t=30000;
 			
 			(function looper() {
 				f.contentWindow.location = "/random?live=false"
@@ -19,6 +19,8 @@
 		}
 
 		iframe {
+			position: relative;
+			top: -5px;
 			margin: 0; padding: 0; border:none;
 			width:100%; height:100%;
 			position:absolute;
@@ -26,6 +28,6 @@
 	</style>
 </head>
 <body>
-	<iframe id="theframe">
+	<iframe id="theframe" scrolling="no"></iframe>
 </body>
 </html>
